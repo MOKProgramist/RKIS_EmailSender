@@ -15,9 +15,16 @@ namespace RKIS_EmailSender
 {
     public partial class MainForm : Form
     {
+        public void initSystemMailService()
+        {
+            comboBoxService.Items.Add("Gmail");
+            comboBoxService.Items.Add("Mail");
+            comboBoxService.SelectedIndex = 1;
+        }
         public MainForm()
         {
             InitializeComponent();
+            this.initSystemMailService();
             textBoxEmail.Text = "task_code_development@list.ru";
             textBoxName.Text = "Андрей Романов";
         }
@@ -37,44 +44,69 @@ namespace RKIS_EmailSender
 
         }
 
-        private void buttonSend_Click(object sender, EventArgs e)
+        private bool IsNullOrWhiteSpaceTextBox()
         {
-            if(string.IsNullOrEmpty(textBoxEmail.Text) || string.IsNullOrEmpty(textBoxName.Text) || string.IsNullOrEmpty(textBoxSubject.Text) || string.IsNullOrEmpty(textBoxBody.Text) ) {
+            if (string.IsNullOrEmpty(textBoxEmail.Text) || string.IsNullOrEmpty(textBoxName.Text) || string.IsNullOrEmpty(textBoxSubject.Text) || string.IsNullOrEmpty(textBoxBody.Text))
+            {
 
                 MessageBox.Show("Заполните все поля");
 
-                return;
-
+                return true;
             }
 
-            string smtp = "smtp.mail.ru";
+            return false;
+        }
 
-            StringPair fromInfo = new StringPair("romanov201573@mail.ru", "Андрей Романов");
+        private void TextBoxIsCleaning()
+        {
+            DialogResult result = MessageBox.Show("Очистить поле ввода?", "Сообщение", MessageBoxButtons.YesNo);
 
+            if(result == DialogResult.Yes)
+            {
+                foreach (TextBox textBox in Controls.OfType<TextBox>())
+                {
+                    textBox.Text = "";
+                }
+            }
+        }
 
-            string passpord = "пароль)";
-
+        private InfoEmail SetInfoEmail(EmailsTypes emailType) {
             StringPair toInfo = new StringPair(textBoxEmail.Text, textBoxName.Text);
 
             string subject = textBoxSubject.Text;
 
-            string body = $"{DateTime.Now}\n" + 
-                $"{Dns.GetHostName()} \n" + 
+            string body = $"{DateTime.Now}\n" +
+                $"{Dns.GetHostName()} \n" +
                 $"{Dns.GetHostAddresses(Dns.GetHostName())} \n" +
                 $"{textBoxBody.Text}";
 
-            InfoEmailSending info = new InfoEmailSending(smtp, fromInfo, passpord, toInfo, subject, body);
-
-            SendingEmail sendingEmail = new SendingEmail(info);
-
-            sendingEmail.Send();
-
-            MessageBox.Show("Письмо отправлено");
-
-            foreach(TextBox textBox in Controls.OfType<TextBox>())
+            if (emailType == EmailsTypes.MailRu)
             {
-                textBox.Text = "";
+                return new InfoMailRu(toInfo, subject, body);    
             }
+
+            return new InfoGMail(toInfo, subject, body);
+        }
+
+        private void buttonSend_Click(object sender, EventArgs e)
+        {
+            if(IsNullOrWhiteSpaceTextBox()) { return; };
+
+            try
+            {
+                SendingEmail sendingEmail = new SendingEmail(
+                    SetInfoEmail((EmailsTypes) comboBoxService.SelectedIndex)
+                    );
+                sendingEmail.Send();
+
+                MessageBox.Show("Письмо отправлено");
+
+                TextBoxIsCleaning();
+            } catch (Exception ex) {
+                MessageBox.Show(ex.Message);
+                return;
+            }
+
         }
     }
 }
